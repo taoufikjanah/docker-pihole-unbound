@@ -1,0 +1,63 @@
+version: "3"
+
+# More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    dns:
+      - ${DNS_1}
+      - ${DNS_2}
+    ports:
+      - 443/tcp
+      - 53/tcp
+      - 53/udp
+      - 67/udp
+      - 80/tcp     
+    environment:
+      TZ: 'Europe/London'
+      WEBPASSWORD: ${PASSWORD}
+      # WEBPASSWORD: 'set a secure password here or it will be random'
+    # Volumes store your data between container upgrades
+    volumes:
+      - './data/etc-pihole/:/etc/pihole/'
+      - './data/etc-dnsmasq.d/:/etc/dnsmasq.d/'
+    # Recommended but not required (DHCP needs NET_ADMIN)
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    networks:
+      home_net:
+        ipv4_address: ${PIHOLE_IPv4}
+    hostname: pihole.home.lan
+    mac_address: 02:42:c0:a8:01:c9
+    depends_on:
+      - "unbound"
+  unbound:
+    container_name: unbound
+    image: mvance/unbound:latest
+    hostname: syn-unbound
+    mac_address: d0:ca:ab:cd:ef:02
+    ports:
+      - 53/tcp
+      - 53/udp
+    networks:
+      home_net:
+        ipv4_address: ${UNBOUND_IPv4}
+    hostname: unbound.home.lan
+    restart: unless-stopped
+
+networks:
+  home_net:
+    name: home_net
+    driver: macvlan
+    driver_opts:
+      parent: ${PARENT_INTERFACE}
+      ip_range: ${IP_RANGE}
+    ipam:
+      driver: default
+      config:
+        - subnet: ${SUBNET}
+          ip_range: ${IP_RANGE}
+          gateway: ${GATEWAY}
